@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"trustedStorage/blockchain"
 	"trustedStorage/database"
+	"trustedStorage/qrcode"
 	"trustedStorage/serialization"
 )
 
@@ -43,12 +44,18 @@ func getBlock(context *gin.Context) {
 }
 
 func Test2() {
+	//db already contains 2 blocks
 	bcBytes := database.GetFromDB("blockchain")
 	bc = blockchain.Blockchain{}
 	serialization.DeSerialize(&bc, bcBytes)
 
+	qrcode.WriteQrToFile(1)
+
 	router := gin.Default()
 	router.GET("/blockchain", getBlockchain)
 	router.GET("/blockchain/:height", getBlock)
-	router.Run("localhost:8080")
+	err := router.Run("localhost:8080")
+	if err != nil {
+		return
+	}
 }
