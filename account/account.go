@@ -16,7 +16,8 @@ func GenAccount() Account {
 	keyPair := keypair.GenKeyPair()
 	a.Wallet = append(a.Wallet, keyPair)
 
-	addressBytes := append(keyPair.PubKey.X.Bytes(), keyPair.PubKey.Y.Bytes()...)
+	//addressBytes := append(keyPair.PubKey.X.Bytes(), keyPair.PubKey.Y.Bytes()...)
+	addressBytes := []byte(keypair.EncodePublicKey(keyPair.PubKey))
 	addressHash := sha256.Sum256(addressBytes)
 	a.AccountAddress = addressHash[:]
 	return a

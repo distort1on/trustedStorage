@@ -3,6 +3,7 @@ package serialization
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"log"
 )
 
@@ -17,11 +18,11 @@ func Serialize(data interface{}) []byte {
 	return buffer.Bytes()
 }
 
-func DeSerialize(object interface{}, data []byte) bool {
+func DeSerialize(object interface{}, data []byte) error {
 	buffer := bytes.NewBuffer(data)
 	d := gob.NewDecoder(buffer)
 	if err := d.Decode(object); err != nil {
-		panic(err)
+		return errors.New("Cant deserialize")
 	}
-	return true
+	return nil
 }

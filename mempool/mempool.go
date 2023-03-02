@@ -2,21 +2,25 @@ package mempool
 
 import (
 	"errors"
+	"fmt"
 	"trustedStorage/transaction"
 )
 
-type Mempool struct {
-	MempoolTransactions []transaction.Transaction
+type MempoolTransactions []transaction.Transaction
+
+func (mp *MempoolTransactions) ToString() (s string) {
+
+	for i, tx := range *mp {
+
+		s += fmt.Sprintf("TRANSACTION №%v\n", i) + tx.ToString() + "\n"
+		//s += fmt.Sprintf("TX - %v\n", i) + hex.EncodeToString(tx.Data) + "\n"
+	}
+	return s
 }
 
-func InitMempool() *Mempool {
-	var m Mempool
-	return &m
-}
-
-func (m *Mempool) AddTxToMempool(tx transaction.Transaction, txDB *transaction.TransactionDataBase) error {
+func (m *MempoolTransactions) AddTxToMempool(tx transaction.Transaction, txDB *transaction.TransactionDataBase) error {
 	if transaction.VerifyTransaction(tx, txDB) {
-		m.MempoolTransactions = append(m.MempoolTransactions, tx)
+		*m = append(*m, tx)
 		return nil
 	} else {
 		return errors.New("tx invalid")
@@ -24,13 +28,13 @@ func (m *Mempool) AddTxToMempool(tx transaction.Transaction, txDB *transaction.T
 
 }
 
-func (m *Mempool) FormTransactionsList(numOfTransactions int) []transaction.Transaction {
+func (m *MempoolTransactions) FormTransactionsList(numOfTransactions int) []transaction.Transaction {
 	var txList []transaction.Transaction
 
 	for i := 0; i < numOfTransactions; i++ {
-		txList = append(txList, m.MempoolTransactions[len(m.MempoolTransactions)-1-i])
+		txList = append(txList, (*m)[len(*m)-1-i])
 	}
-	m.MempoolTransactions = m.MempoolTransactions[:len(m.MempoolTransactions)-numOfTransactions]
+	*m = (*m)[:len(*m)-numOfTransactions]
 
 	return txList
 }

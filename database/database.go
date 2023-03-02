@@ -5,18 +5,20 @@ import (
 	"os"
 )
 
-// "" -> null
+// "" -> null ?
 func WriteToDB(data []byte, key string) {
 	dirPath, _ := os.Getwd()
-	db, _ := bitcask.Open(dirPath + "/database/db")
+
+	db, _ := bitcask.Open(dirPath + "/database/blockchainDB")
 	defer db.Close()
+
 	db.Put([]byte(key), data)
 }
 
 func GetFromDB(key string) []byte {
 	dirPath, _ := os.Getwd()
 
-	db, _ := bitcask.Open(dirPath + "/database/db")
+	db, _ := bitcask.Open(dirPath + "/database/blockchainDB")
 	defer db.Close()
 
 	val, _ := db.Get([]byte(key))

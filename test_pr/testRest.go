@@ -1,28 +1,28 @@
 package test_pr
 
 import (
-	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 	"trustedStorage/blockchain"
+)
+
+import (
+	"errors"
 	"trustedStorage/database"
-	"trustedStorage/mempool"
-	"trustedStorage/qrcode"
 	"trustedStorage/serialization"
 	"trustedStorage/transaction"
 )
 
-// later take from db
-var bc blockchain.Blockchain
-var memP *mempool.Mempool = mempool.InitMempool()
-var txDB = transaction.TransactionDataBase{
-	TxDataBase: make(map[string]transaction.Transaction),
-}
+//var memPool *mempool.Mempool = mempool.InitMempool()
+//var txDB = transaction.TransactionDataBase{
+//	TxDataBase: make(map[string]transaction.Transaction),
+//}
 
 func getBlockchain(context *gin.Context) {
-	//&bc?
-	context.IndentedJSON(http.StatusOK, bc)
+	//&blockChain?
+	context.IndentedJSON(http.StatusOK, blockChain)
 }
 
 func getBlockByHeight(height string) (*blockchain.Block, error) {
@@ -31,8 +31,8 @@ func getBlockByHeight(height string) (*blockchain.Block, error) {
 		panic(err)
 	}
 
-	if uint64(len(bc.BlocksHistory)) > h {
-		return bc.BlocksHistory[h], nil
+	if uint64(len(*blockChain)) > h {
+		return (*blockChain)[h], nil
 	}
 
 	return nil, errors.New("Block not found")
@@ -51,7 +51,7 @@ func getBlock(context *gin.Context) {
 }
 
 func getLastBlock(context *gin.Context) {
-	block, err := getBlockByHeight(strconv.Itoa(len(bc.BlocksHistory) - 1))
+	block, err := getBlockByHeight(strconv.Itoa(len(*blockChain) - 1))
 	if err != nil {
 		context.IndentedJSON(http.StatusNotFound, gin.H{"message": "Block not found"})
 		panic(err)
@@ -62,11 +62,24 @@ func getLastBlock(context *gin.Context) {
 
 func addTX(context *gin.Context) {
 	var tx transaction.Transaction
+
 	if err := context.BindJSON(&tx); err != nil {
 		panic(err)
 	}
 
-	err := memP.AddTxToMempool(tx, &txDB)
+	err := memPool.AddTxToMempool(tx, &txDataBase)
+
+	//todo add goroutine
+	if len(memPool) > numOfTransactionsInBlock {
+		block := blockchain.CreateBlock(1, (*blockChain)[len(*blockChain)-1].GetBlockHash(), memPool.FormTransactionsList(numOfTransactionsInBlock))
+		err := blockChain.AddBlockToBlockchain(&block, &txDataBase)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	//
+
 	if err != nil {
 		panic(err)
 	}
@@ -74,18 +87,32 @@ func addTX(context *gin.Context) {
 }
 
 func getHeight(context *gin.Context) {
-	height := len(bc.BlocksHistory) - 1
+	height := len(*blockChain) - 1
 
 	context.IndentedJSON(http.StatusOK, height)
 }
 
-func Test2() {
+func RunRest() {
 	//db already contains 2 blocks
 	bcBytes := database.GetFromDB("blockchain")
-	bc = blockchain.Blockchain{}
-	serialization.DeSerialize(&bc, bcBytes)
+	err := serialization.DeSerialize(&blockChain, bcBytes)
+	if err != nil {
+		panic(err)
+	}
 
-	qrcode.WriteQrToFile(1)
+	mpBytes := database.GetFromDB("mempool")
+	err = serialization.DeSerialize(&memPool, mpBytes)
+	if err != nil {
+		panic(err)
+	}
+
+	txDbBytes := database.GetFromDB("txDatabase")
+	err = serialization.DeSerialize(&txDataBase, txDbBytes)
+	if err != nil {
+		panic(err)
+	}
+
+	//qrcode.WriteQrToFile(1)
 
 	router := gin.Default()
 	router.GET("/blockchain", getBlockchain)
@@ -93,8 +120,9 @@ func Test2() {
 	router.GET("/blockchain/height", getHeight)
 	router.GET("/blockchain/lastBlock", getLastBlock)
 	router.POST("/blockchain", addTX)
-	err := router.Run("localhost:8080")
+	err = router.Run("localhost:8080")
 	if err != nil {
 		return
 	}
+
 }

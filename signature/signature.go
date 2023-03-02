@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
 )
 
 func SignData(privKey *ecdsa.PrivateKey, message []byte) []byte {
@@ -19,8 +18,4 @@ func SignData(privKey *ecdsa.PrivateKey, message []byte) []byte {
 func VerifySignature(sig []byte, message []byte, pubKey *ecdsa.PublicKey) bool {
 	messageHash := sha256.Sum256(message)
 	return ecdsa.VerifyASN1(pubKey, messageHash[:], sig)
-}
-
-func PrintSignature(sig []byte) {
-	fmt.Printf("%x\n", sig)
 }

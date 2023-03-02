@@ -22,36 +22,36 @@ func GenKeyPair() KeyPair {
 	return KeyPair{privateKey, &privateKey.PublicKey}
 }
 
-func (k KeyPair) PrintKeyPair() {
+func (k *KeyPair) PrintKeyPair() {
 	fmt.Println(k.privKey, k.PubKey)
 }
 
-func (k KeyPair) GetPrivateKey() *ecdsa.PrivateKey {
+func (k *KeyPair) GetPrivateKey() *ecdsa.PrivateKey {
 	return k.privKey
 }
 
-func EncodePrivateKey(privateKey *ecdsa.PrivateKey) string {
+func EncodePrivateKey(privateKey *ecdsa.PrivateKey) []byte {
 	x509Encoded, _ := x509.MarshalECPrivateKey(privateKey)
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509Encoded})
-	return string(pemEncoded)
+	return pemEncoded
 }
 
-func EncodePublicKey(publicKey *ecdsa.PublicKey) string {
+func EncodePublicKey(publicKey *ecdsa.PublicKey) []byte {
 	x509EncodedPub, _ := x509.MarshalPKIXPublicKey(publicKey)
 	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
-	return string(pemEncodedPub)
+	return pemEncodedPub
 }
 
-func DecodePublicKey(pemEncodedPub string) *ecdsa.PublicKey {
-	blockPub, _ := pem.Decode([]byte(pemEncodedPub))
+func DecodePublicKey(pemEncodedPub []byte) *ecdsa.PublicKey {
+	blockPub, _ := pem.Decode(pemEncodedPub)
 	x509EncodedPub := blockPub.Bytes
 	genericPublicKey, _ := x509.ParsePKIXPublicKey(x509EncodedPub)
 	publicKey := genericPublicKey.(*ecdsa.PublicKey)
 	return publicKey
 }
 
-func DecodePrivateKey(pemEncoded string) *ecdsa.PrivateKey {
-	block, _ := pem.Decode([]byte(pemEncoded))
+func DecodePrivateKey(pemEncoded []byte) *ecdsa.PrivateKey {
+	block, _ := pem.Decode(pemEncoded)
 	x509Encoded := block.Bytes
 	privateKey, _ := x509.ParseECPrivateKey(x509Encoded)
 	return privateKey

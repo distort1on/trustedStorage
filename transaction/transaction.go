@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+
 	"trustedStorage/account"
 	"trustedStorage/keypair"
 	"trustedStorage/signature"
@@ -14,18 +15,16 @@ type Transaction struct {
 	//TxVersion
 	//LockTime
 	//sequence
-	SenderAddress   []byte
-	Data            []byte
-	PubKey          []byte
-	Signature       []byte
-	TransactionHash []byte
+	//timestamp here?
+	SenderAddress []byte //x509 public key hash
+	Data          []byte
+	PubKey        []byte //x509 public key
+	Signature     []byte //asn1 signature
 
 	//Nonce (Data1 = Data2 sender?)
 }
 
-type TransactionDataBase struct {
-	TxDataBase map[string]Transaction
-}
+type TransactionDataBase map[string]Transaction
 
 func CreateTransaction(sender account.Account, data []byte) Transaction {
 	var tx Transaction
@@ -35,21 +34,25 @@ func CreateTransaction(sender account.Account, data []byte) Transaction {
 	return tx
 }
 
+func (tx *Transaction) GetTxHash() []byte {
+	txHash := sha256.Sum256(bytes.Join([][]byte{tx.SenderAddress, tx.Data, tx.Signature, tx.PubKey}, []byte{}))
+	return txHash[:]
+}
+
 func SignTransaction(tx Transaction, sender account.Account, walletIndex uint8) Transaction {
 	txDataToSign := bytes.Join([][]byte{tx.SenderAddress, tx.Data}, []byte{})
 	tx.Signature = signature.SignData(sender.Wallet[walletIndex].GetPrivateKey(), txDataToSign)
-	tx.PubKey = []byte(keypair.EncodePublicKey(sender.Wallet[walletIndex].PubKey))
-	txHash := sha256.Sum256(bytes.Join([][]byte{tx.SenderAddress, tx.Data, tx.Signature, tx.PubKey}, []byte{}))
-	tx.TransactionHash = txHash[:]
+	tx.PubKey = keypair.EncodePublicKey(sender.Wallet[walletIndex].PubKey)
+
 	return tx
 }
 
 func VerifyTransaction(tx Transaction, txDB *TransactionDataBase) bool {
-	//check if fields non empty
+	//todo check if fields non empty
 
-	if _, inMap := txDB.TxDataBase[string(tx.Data)]; !inMap {
+	if _, inMap := (*txDB)[string(tx.Data)]; !inMap {
 		txDataToVerifySignature := bytes.Join([][]byte{tx.SenderAddress, tx.Data}, []byte{})
-		if signature.VerifySignature(tx.Signature, txDataToVerifySignature, keypair.DecodePublicKey(string(tx.PubKey))) {
+		if signature.VerifySignature(tx.Signature, txDataToVerifySignature, keypair.DecodePublicKey(tx.PubKey)) {
 			return true
 		}
 	}
@@ -63,4 +66,14 @@ func (tx *Transaction) ToString() string {
 		panic(err)
 	}
 	return fmt.Sprint(string(out))
+
+	//return fmt.Sprintf(
+	//	"\nSenderAddress: %x\nData: %x\nPubKey: %x\nSignature: %x\nTransactionHash: %x\n",
+	//	tx.SenderAddress,
+	//	tx.Data,
+	//	tx.PubKey,
+	//	tx.Signature,
+	//	tx.TransactionHash,
+	//)
+
 }
