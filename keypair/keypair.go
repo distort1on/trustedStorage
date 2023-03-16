@@ -44,6 +44,7 @@ func EncodePublicKey(publicKey *ecdsa.PublicKey) []byte {
 
 func DecodePublicKey(pemEncodedPub []byte) *ecdsa.PublicKey {
 	blockPub, _ := pem.Decode(pemEncodedPub)
+
 	x509EncodedPub := blockPub.Bytes
 	genericPublicKey, _ := x509.ParsePKIXPublicKey(x509EncodedPub)
 	publicKey := genericPublicKey.(*ecdsa.PublicKey)

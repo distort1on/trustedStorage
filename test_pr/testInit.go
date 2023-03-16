@@ -3,6 +3,7 @@ package test_pr
 import (
 	"bufio"
 	"fmt"
+	shell "github.com/ipfs/go-ipfs-api"
 	"io"
 	"log"
 	"os"
@@ -16,9 +17,9 @@ import (
 
 var blockChain = blockchain.InitBlockchain()
 var memPool = mempool.MempoolTransactions{}
+var sh = shell.NewShell("localhost:5001")
 
-// var txDataBase = make(map[string]transaction.Transaction)
-var txDataBase = make(transaction.TransactionDataBase)
+//var txDataBase = make(transaction.TransactionDataBase)
 
 const numOfTransactionsInBlock = 1
 
@@ -67,7 +68,7 @@ func fillMempool() {
 		tx := transaction.CreateTransaction(tempAccount, doc1Bytes)
 		tx = transaction.SignTransaction(tx, tempAccount, 0)
 
-		err = memPool.AddTxToMempool(tx, &txDataBase)
+		err = memPool.AddTxToMempool(tx, doc1Bytes, sh)
 
 		if err != nil {
 			panic(err)
@@ -86,7 +87,7 @@ func Test1() {
 
 		if len(memPool) > numOfTransactionsInBlock {
 			block := blockchain.CreateBlock(1, (*blockChain)[len(*blockChain)-1].GetBlockHash(), memPool.FormTransactionsList(numOfTransactionsInBlock))
-			err := blockChain.AddBlockToBlockchain(&block, &txDataBase)
+			err := blockChain.AcceptingBlock(&block)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -113,6 +114,4 @@ func Test1() {
 	mpBytes := serialization.Serialize(&memPool)
 	database.WriteToDB(mpBytes, "mempool")
 
-	txdbBytes := serialization.Serialize(&txDataBase)
-	database.WriteToDB(txdbBytes, "txDatabase")
 }

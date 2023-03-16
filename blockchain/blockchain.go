@@ -45,8 +45,8 @@ func (b *Block) GetBlockHash() []byte {
 		[]byte(strconv.FormatUint(uint64(b.Version), 10)),
 		b.HashPrevBlock,
 		[]byte(strconv.FormatInt(b.Time, 10)),
-		[]byte(strconv.FormatUint(uint64(b.TxCounter), 10)),
 		[]byte(strconv.FormatUint(uint64(b.BlockSize), 10)),
+		[]byte(strconv.FormatUint(uint64(b.TxCounter), 10)),
 	}
 
 	for _, tx := range b.Transactions {
@@ -89,35 +89,43 @@ func (bc *Blockchain) ToString() (s string) {
 
 	for i, block := range *bc {
 
-		s += fmt.Sprintf("Block on height %v\n", i) + block.ToString() + "\n"
+		s += fmt.Sprintf("\nBlock on height %v\n", i) + block.ToString() + "\n"
 		//s = strings.Join([]string{s}, block.ToString())
 	}
 	return s
 }
 
-func (bc *Blockchain) AddBlockToBlockchain(b *Block, txDB *transaction.TransactionDataBase) error {
-	if ValidateBlock(b, (*bc)[len(*bc)-1].GetBlockHash(), txDB) {
+func (bc *Blockchain) AcceptingBlock(b *Block) error {
+	if VerificationBlock(b, (*bc)[len(*bc)-1].GetBlockHash()) {
 		*bc = append(*bc, b)
-		for _, tx := range b.Transactions {
-			(*txDB)[string(tx.Data)] = tx
-		}
 		return nil
 	}
 	return errors.New("block cant be add to blockchain")
 
 }
 
-func ValidateBlock(b *Block, lastBlockchainBlockHash []byte, txDB *transaction.TransactionDataBase) bool {
+func VerificationBlock(b *Block, lastBlockchainBlockHash []byte) bool {
 	if !bytes.Equal(b.HashPrevBlock, lastBlockchainBlockHash) {
 		return false
 	}
 
 	for _, tx := range b.Transactions {
-		if !transaction.VerifyTransaction(tx, txDB) {
+		if !transaction.VerifyTransaction(tx) {
 			return false
 		}
 	}
 
 	return true
 
+}
+
+func GetUserTxHistory(bc *Blockchain, userAddress []byte) (s string) {
+	for in, _ := range *bc {
+		for _, el := range (*bc)[in].Transactions {
+			if bytes.Equal(el.SenderAddress, userAddress) {
+				s += fmt.Sprintf("Tx in block %v\n", in) + el.ToString() + "\n"
+			}
+		}
+	}
+	return s
 }

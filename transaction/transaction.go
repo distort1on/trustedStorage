@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-
 	"trustedStorage/account"
 	"trustedStorage/keypair"
 	"trustedStorage/signature"
@@ -20,11 +19,9 @@ type Transaction struct {
 	Data          []byte
 	PubKey        []byte //x509 public key
 	Signature     []byte //asn1 signature
-
+	Cid           []byte
 	//Nonce (Data1 = Data2 sender?)
 }
-
-type TransactionDataBase map[string]Transaction
 
 func CreateTransaction(sender account.Account, data []byte) Transaction {
 	var tx Transaction
@@ -35,7 +32,7 @@ func CreateTransaction(sender account.Account, data []byte) Transaction {
 }
 
 func (tx *Transaction) GetTxHash() []byte {
-	txHash := sha256.Sum256(bytes.Join([][]byte{tx.SenderAddress, tx.Data, tx.Signature, tx.PubKey}, []byte{}))
+	txHash := sha256.Sum256(bytes.Join([][]byte{tx.SenderAddress, tx.Data, tx.PubKey, tx.Signature}, []byte{}))
 	return txHash[:]
 }
 
@@ -47,14 +44,12 @@ func SignTransaction(tx Transaction, sender account.Account, walletIndex uint8) 
 	return tx
 }
 
-func VerifyTransaction(tx Transaction, txDB *TransactionDataBase) bool {
+func VerifyTransaction(tx Transaction) bool {
 	//todo check if fields non empty
 
-	if _, inMap := (*txDB)[string(tx.Data)]; !inMap {
-		txDataToVerifySignature := bytes.Join([][]byte{tx.SenderAddress, tx.Data}, []byte{})
-		if signature.VerifySignature(tx.Signature, txDataToVerifySignature, keypair.DecodePublicKey(tx.PubKey)) {
-			return true
-		}
+	txDataToVerifySignature := bytes.Join([][]byte{tx.SenderAddress, tx.Data}, []byte{})
+	if signature.VerifySignature(tx.Signature, txDataToVerifySignature, keypair.DecodePublicKey(tx.PubKey)) {
+		return true
 	}
 
 	return false

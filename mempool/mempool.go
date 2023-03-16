@@ -1,8 +1,11 @@
 package mempool
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	shell "github.com/ipfs/go-ipfs-api"
+	"log"
 	"trustedStorage/transaction"
 )
 
@@ -18,8 +21,16 @@ func (mp *MempoolTransactions) ToString() (s string) {
 	return s
 }
 
-func (m *MempoolTransactions) AddTxToMempool(tx transaction.Transaction, txDB *transaction.TransactionDataBase) error {
-	if transaction.VerifyTransaction(tx, txDB) {
+func (m *MempoolTransactions) AddTxToMempool(tx transaction.Transaction, documentBytes []byte, sh *shell.Shell) error {
+	if transaction.VerifyTransaction(tx) {
+		reader := bytes.NewReader(documentBytes)
+		cid, err := sh.Add(reader)
+		if err != nil {
+			log.Println(err)
+		}
+		tx.Cid = []byte(cid)
+		fmt.Println(cid)
+
 		*m = append(*m, tx)
 		return nil
 	} else {

@@ -19,20 +19,8 @@ func Test2() {
 		panic(err)
 	}
 
-	txDbBytes := database.GetFromDB("txDatabase")
-	err = serialization.DeSerialize(&txDataBase, txDbBytes)
-	if err != nil {
-		panic(err)
-	}
-
 	fmt.Println("Blockchain: \n" + blockChain.ToString())
 
 	fmt.Println("Mempool: \n" + memPool.ToString())
-
-	fmt.Println("Transaction Database: \n")
-	for key, value := range txDataBase {
-
-		fmt.Printf("\nDocument: %x\n%v\n", key, value.ToString())
-	}
 
 }
