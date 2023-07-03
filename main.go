@@ -1,14 +1,7 @@
 package main
 
-import "trustedStorage/test_pr"
+import "trustedStorage/node"
 
 func main() {
-
-	//test_pr.Test1()
-
-	//test_pr.Test2()
-
-	//test_pr.RunRest()
-	test_pr.StartGrpc()
-
+	node.LaunchNode()
 }

@@ -7,7 +7,8 @@ message CreateTx {
   bytes data = 2;
   bytes pubKey = 3;
   bytes signature = 4;
-  bytes documentBytes = 5;
+  int64 nonce = 5;
+  bytes cid = 6;
 }
 
 message CreateResponse {
@@ -18,16 +19,22 @@ message User {
   bytes senderAddress = 1;
 }
 
+message Transaction {
+  bytes txHash = 1;
+}
+
+message Document {
+  bytes documentHash = 1;
+}
+
 message BlockHeader {
   uint64 version = 1;
   bytes HashPrevBlock = 2;
-  //HashMerkleRoot []byte
-  int64 Time = 3;
+  bytes HashMerkleRoot = 3;
+  int64 Time = 4;
 }
 
-
 message Block {
-  //MacigNo
   uint64 blocksize = 1;
   BlockHeader blockheader = 2;
   uint64 TxCounter = 3;
@@ -39,4 +46,6 @@ service Invoicer {
   rpc GetLastBlock(google.protobuf.Empty) returns (CreateResponse);
   rpc GetBlockchain(google.protobuf.Empty) returns (CreateResponse);
   rpc GetUserTxHistory(User) returns (CreateResponse);
+  rpc GetTxByHash(Transaction) returns (CreateResponse);
+  rpc FindDocumentByHash(Document) returns (CreateResponse);
 }

@@ -3,25 +3,15 @@ package test_pr
 import (
 	"bufio"
 	"fmt"
-	shell "github.com/ipfs/go-ipfs-api"
 	"io"
 	"log"
 	"os"
 	"trustedStorage/account"
 	"trustedStorage/blockchain"
-	"trustedStorage/database"
 	"trustedStorage/mempool"
-	"trustedStorage/serialization"
+	"trustedStorage/settings"
 	"trustedStorage/transaction"
 )
-
-var blockChain = blockchain.InitBlockchain()
-var memPool = mempool.MempoolTransactions{}
-var sh = shell.NewShell("localhost:5001")
-
-//var txDataBase = make(transaction.TransactionDataBase)
-
-const numOfTransactionsInBlock = 1
 
 func getBytesFromFile(path string) ([]byte, error) {
 	file, err := os.Open(path)
@@ -45,8 +35,7 @@ func getBytesFromFile(path string) ([]byte, error) {
 	}
 	return bs, nil
 }
-
-func fillMempool() {
+func TestFillBlockchain() {
 	entries, err := os.ReadDir("./certificates")
 	if err != nil {
 		log.Fatal(err)
@@ -68,50 +57,24 @@ func fillMempool() {
 		tx := transaction.CreateTransaction(tempAccount, doc1Bytes)
 		tx = transaction.SignTransaction(tx, tempAccount, 0)
 
-		err = memPool.AddTxToMempool(tx, doc1Bytes, sh)
+		err = mempool.MemPoolIns.AddTxToMempool(tx)
 
 		if err != nil {
 			panic(err)
 		}
-
 	}
-
-	//fmt.Println(memPool.ToString())
-}
-
-func Test1() {
-
-	fillMempool()
+	numOfTransactionsInBlock := int(settings.GetNumOfTransactionsInBlock())
 
 	for {
-
-		if len(memPool) > numOfTransactionsInBlock {
-			block := blockchain.CreateBlock(1, (*blockChain)[len(*blockChain)-1].GetBlockHash(), memPool.FormTransactionsList(numOfTransactionsInBlock))
-			err := blockChain.AcceptingBlock(&block)
+		if len(*mempool.MemPoolIns) > numOfTransactionsInBlock {
+			block := blockchain.CreateBlock(1, (*blockchain.BlockChainIns)[len(*blockchain.BlockChainIns)-1].GetBlockHash(), mempool.MemPoolIns.FormTransactionsList(numOfTransactionsInBlock))
+			err := blockchain.BlockChainIns.AcceptingBlock(&block)
 			if err != nil {
 				fmt.Println(err)
 			}
 		} else {
 			break
 		}
-
 	}
-
-	fmt.Println("Blockchain: \n" + blockChain.ToString())
-
-	fmt.Println("Mempool: \n" + memPool.ToString())
-
-	//fmt.Println("Transaction Database: \n")
-	//for key, value := range txDataBase {
-	//
-	//	fmt.Printf("\nDocument: %x\n%v\n", key, value.ToString())
-	//}
-
-	//save to DB
-	bcBytes := serialization.Serialize(&blockChain)
-	database.WriteToDB(bcBytes, "blockchain") //maybe write each block?
-
-	mpBytes := serialization.Serialize(&memPool)
-	database.WriteToDB(mpBytes, "mempool")
 
 }

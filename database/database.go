@@ -2,26 +2,33 @@ package database
 
 import (
 	"github.com/prologic/bitcask"
+	"log"
 	"os"
 )
 
 // "" -> null ?
-func WriteToDB(data []byte, key string) {
+func WriteToDB(data []byte, key string, nodeNumber string) {
 	dirPath, _ := os.Getwd()
 
-	db, _ := bitcask.Open(dirPath + "/database/blockchainDB")
+	db, _ := bitcask.Open(dirPath + "/database/blockchainDB_" + nodeNumber)
 	defer db.Close()
 
-	db.Put([]byte(key), data)
+	err := db.Put([]byte(key), data)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
-func GetFromDB(key string) []byte {
+func GetFromDB(key string, nodeNumber string) []byte {
 	dirPath, _ := os.Getwd()
 
-	db, _ := bitcask.Open(dirPath + "/database/blockchainDB")
+	db, _ := bitcask.Open(dirPath + "/database/blockchainDB_" + nodeNumber)
 	defer db.Close()
 
-	val, _ := db.Get([]byte(key))
+	val, err := db.Get([]byte(key))
+	if err != nil {
+		log.Println(err)
+	}
 
 	return val
 }

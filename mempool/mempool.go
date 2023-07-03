@@ -1,15 +1,22 @@
 package mempool
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	shell "github.com/ipfs/go-ipfs-api"
 	"log"
+	"math/rand"
+	"time"
+	"trustedStorage/blockchain"
 	"trustedStorage/transaction"
 )
 
 type MempoolTransactions []transaction.Transaction
+
+var MemPoolIns *MempoolTransactions
+
+func InitMempool() *MempoolTransactions {
+	var mp MempoolTransactions
+	return &mp
+}
 
 func (mp *MempoolTransactions) ToString() (s string) {
 
@@ -21,31 +28,47 @@ func (mp *MempoolTransactions) ToString() (s string) {
 	return s
 }
 
-func (m *MempoolTransactions) AddTxToMempool(tx transaction.Transaction, documentBytes []byte, sh *shell.Shell) error {
-	if transaction.VerifyTransaction(tx) {
-		reader := bytes.NewReader(documentBytes)
-		cid, err := sh.Add(reader)
-		if err != nil {
-			log.Println(err)
-		}
-		tx.Cid = []byte(cid)
-		fmt.Println(cid)
+func (mp *MempoolTransactions) AddTxToMempool(tx transaction.Transaction) error {
 
-		*m = append(*m, tx)
-		return nil
+	errTx := blockchain.VerifyTransaction(tx)
+	if errTx != nil {
+		return errTx
 	} else {
-		return errors.New("tx invalid")
+		log.Printf("Transaction %x correct and added to mempool", tx.GetTxHash())
 	}
 
+	*mp = append(*mp, tx)
+
+	return nil
 }
 
-func (m *MempoolTransactions) FormTransactionsList(numOfTransactions int) []transaction.Transaction {
+func (mp *MempoolTransactions) FormTransactionsList(numOfTransactions int) []transaction.Transaction {
 	var txList []transaction.Transaction
+	var rInd int
+	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < numOfTransactions; i++ {
-		txList = append(txList, (*m)[len(*m)-1-i])
+		rInd = rand.Intn(len(*mp))
+		txList = append(txList, (*mp)[rInd])
+
+		(*mp)[rInd] = (*mp)[len(*mp)-1]
+		*mp = (*mp)[:len(*mp)-1]
 	}
-	*m = (*m)[:len(*m)-numOfTransactions]
 
 	return txList
+}
+
+func (mp *MempoolTransactions) ReturnTxToMempool(txList []transaction.Transaction) {
+	for _, tx := range txList {
+		*mp = append(*mp, tx)
+	}
+}
+
+func (mp *MempoolTransactions) RemoveExistingTxFromMempool() {
+	for i, tx := range *mp {
+		if blockchain.CheckTxAlreadyExist(tx) {
+			(*mp)[i] = (*mp)[len(*mp)-1]
+			*mp = (*mp)[:len(*mp)-1]
+		}
+	}
 }

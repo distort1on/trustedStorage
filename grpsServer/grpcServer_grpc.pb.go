@@ -20,10 +20,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Invoicer_AddTxToBlockchain_FullMethodName = "/Invoicer/AddTxToBlockchain"
-	Invoicer_GetLastBlock_FullMethodName      = "/Invoicer/GetLastBlock"
-	Invoicer_GetBlockchain_FullMethodName     = "/Invoicer/GetBlockchain"
-	Invoicer_GetUserTxHistory_FullMethodName  = "/Invoicer/GetUserTxHistory"
+	Invoicer_AddTxToBlockchain_FullMethodName  = "/Invoicer/AddTxToBlockchain"
+	Invoicer_GetLastBlock_FullMethodName       = "/Invoicer/GetLastBlock"
+	Invoicer_GetBlockchain_FullMethodName      = "/Invoicer/GetBlockchain"
+	Invoicer_GetUserTxHistory_FullMethodName   = "/Invoicer/GetUserTxHistory"
+	Invoicer_GetTxByHash_FullMethodName        = "/Invoicer/GetTxByHash"
+	Invoicer_FindDocumentByHash_FullMethodName = "/Invoicer/FindDocumentByHash"
 )
 
 // InvoicerClient is the client API for Invoicer service.
@@ -34,6 +36,8 @@ type InvoicerClient interface {
 	GetLastBlock(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateResponse, error)
 	GetBlockchain(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateResponse, error)
 	GetUserTxHistory(ctx context.Context, in *User, opts ...grpc.CallOption) (*CreateResponse, error)
+	GetTxByHash(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*CreateResponse, error)
+	FindDocumentByHash(ctx context.Context, in *Document, opts ...grpc.CallOption) (*CreateResponse, error)
 }
 
 type invoicerClient struct {
@@ -80,6 +84,24 @@ func (c *invoicerClient) GetUserTxHistory(ctx context.Context, in *User, opts ..
 	return out, nil
 }
 
+func (c *invoicerClient) GetTxByHash(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*CreateResponse, error) {
+	out := new(CreateResponse)
+	err := c.cc.Invoke(ctx, Invoicer_GetTxByHash_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invoicerClient) FindDocumentByHash(ctx context.Context, in *Document, opts ...grpc.CallOption) (*CreateResponse, error) {
+	out := new(CreateResponse)
+	err := c.cc.Invoke(ctx, Invoicer_FindDocumentByHash_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InvoicerServer is the server API for Invoicer service.
 // All implementations must embed UnimplementedInvoicerServer
 // for forward compatibility
@@ -88,6 +110,8 @@ type InvoicerServer interface {
 	GetLastBlock(context.Context, *emptypb.Empty) (*CreateResponse, error)
 	GetBlockchain(context.Context, *emptypb.Empty) (*CreateResponse, error)
 	GetUserTxHistory(context.Context, *User) (*CreateResponse, error)
+	GetTxByHash(context.Context, *Transaction) (*CreateResponse, error)
+	FindDocumentByHash(context.Context, *Document) (*CreateResponse, error)
 	mustEmbedUnimplementedInvoicerServer()
 }
 
@@ -106,6 +130,12 @@ func (UnimplementedInvoicerServer) GetBlockchain(context.Context, *emptypb.Empty
 }
 func (UnimplementedInvoicerServer) GetUserTxHistory(context.Context, *User) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserTxHistory not implemented")
+}
+func (UnimplementedInvoicerServer) GetTxByHash(context.Context, *Transaction) (*CreateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTxByHash not implemented")
+}
+func (UnimplementedInvoicerServer) FindDocumentByHash(context.Context, *Document) (*CreateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindDocumentByHash not implemented")
 }
 func (UnimplementedInvoicerServer) mustEmbedUnimplementedInvoicerServer() {}
 
@@ -192,6 +222,42 @@ func _Invoicer_GetUserTxHistory_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Invoicer_GetTxByHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Transaction)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvoicerServer).GetTxByHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Invoicer_GetTxByHash_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvoicerServer).GetTxByHash(ctx, req.(*Transaction))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Invoicer_FindDocumentByHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Document)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvoicerServer).FindDocumentByHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Invoicer_FindDocumentByHash_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvoicerServer).FindDocumentByHash(ctx, req.(*Document))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Invoicer_ServiceDesc is the grpc.ServiceDesc for Invoicer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -214,6 +280,14 @@ var Invoicer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserTxHistory",
 			Handler:    _Invoicer_GetUserTxHistory_Handler,
+		},
+		{
+			MethodName: "GetTxByHash",
+			Handler:    _Invoicer_GetTxByHash_Handler,
+		},
+		{
+			MethodName: "FindDocumentByHash",
+			Handler:    _Invoicer_FindDocumentByHash_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

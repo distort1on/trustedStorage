@@ -13,7 +13,7 @@ func Serialize(data interface{}) []byte {
 
 	err := enc.Encode(data)
 	if err != nil {
-		log.Fatal("encode error:", err)
+		log.Println("encode error:", err)
 	}
 	return buffer.Bytes()
 }
