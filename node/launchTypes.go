@@ -22,7 +22,7 @@ func systemLaunch() {
 	stateWorker.SetNodeState("Working")
 
 	test_pr.TestFillBlockchain()
-	SleepNode()
+	SaveNode()
 }
 
 func askForFullChainLaunch() {
@@ -86,7 +86,7 @@ func verifyAndAskForMissingBlocks() {
 		}
 	}
 
-	if err == nil && stateWorker.WaitForStateChanged("Waiting_Missing_Blocks", "Received_Missing_Blocks", 20) {
+	if err == nil && stateWorker.WaitForStateChanged("Waiting_Missing_Blocks", "Received_Missing_Blocks", 60) {
 		log.Println("Blockchain is valid")
 	} else {
 		if settings.IsMasterNode(p2pCommunication.Node.ID().String()) {

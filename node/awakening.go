@@ -24,6 +24,7 @@ func NodeAwakening() bool {
 	} else {
 		log.Println("Blockchain from db verified and correct")
 		blockchain.BlockChainIns = &bcToTest
+		//*blockchain.BlockChainIns = (*blockchain.BlockChainIns)[:3]
 	}
 
 	mpBytes := database.GetFromDB("mempool", NodeNum)
@@ -33,6 +34,7 @@ func NodeAwakening() bool {
 		return false
 	}
 
+	// todo for future consensus joining after awake
 	//var currState string
 	//stBytes := database.GetFromDB("current_state", NodeNum)
 	//err = serialization.DeSerialize(&currState, stBytes)

@@ -15,9 +15,13 @@ func WaitForDelivery(peerID string, requestData []byte, timeout int64) error {
 		if err != nil {
 			log.Println("Request wasn't delivered, repeating")
 			log.Println(err)
+			if timeout == 0 {
+				return err
+			}
 		} else {
 			return nil
 		}
+
 		time.Sleep(time.Second * 4)
 
 		if time.Now().Unix()-startTime > timeout {
@@ -25,8 +29,4 @@ func WaitForDelivery(peerID string, requestData []byte, timeout int64) error {
 		}
 
 	}
-}
-
-func RepeatDelivery(timeout int64) {
-
 }

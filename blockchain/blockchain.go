@@ -27,7 +27,6 @@ type BlockHeader struct {
 }
 
 type Block struct {
-	//MacigNo
 	BlockSize uint
 	BlockHeader
 	TxCounter    uint
@@ -60,10 +59,6 @@ func (b *Block) GetBlockHash() []byte {
 		b.MerkleRoot,
 		[]byte(strconv.FormatInt(b.Time, 10)),
 	}
-
-	//for _, tx := range b.Transactions {
-	//	blockSumBytes = append(blockSumBytes, tx.GetTxHash())
-	//}
 
 	blockHash := sha256.Sum256(bytes.Join(blockSumBytes, []byte{}))
 
@@ -137,27 +132,23 @@ func (b *Block) ToString() string {
 		b.TxCounter,
 	)
 	result += fmt.Sprintf("Transactions: [\n")
-	for _, el := range b.Transactions {
-		result += el.ToString()
+	for i, el := range b.Transactions {
+		result += "Tx № " + strconv.Itoa(i) + el.ToString()
 	}
 	result += "]"
 
-	//return fmt.Sprint(string(out))
 	return result
 }
 
 func (bc *Blockchain) ToString() (s string) {
-
 	for i, block := range *bc {
-
 		s += fmt.Sprintf("\nBlock on height %v\n", i) + block.ToString() + "\n"
-		//s = strings.Join([]string{s}, block.ToString())
 	}
 	return s
 }
 
 func (bc *Blockchain) AcceptingBlock(b *Block) error {
-	//todo first verify then accept
+	// todo first verify then accept
 	err := VerificationBlock(b, BlockChainIns.GetLastBlock().GetBlockHash())
 	if err == nil {
 		*bc = append(*bc, b)
@@ -217,6 +208,7 @@ func VerificationBlock(b *Block, prevBlockHash []byte) error {
 	//	err = errors.New("cant create block on given height")
 	//	return err
 	//}
+
 	//check if block already exist
 	bHash := b.GetBlockHash()
 	for _, el := range *BlockChainIns {
@@ -239,15 +231,7 @@ func VerificationBlock(b *Block, prevBlockHash []byte) error {
 func VerifyTransaction(tx transaction.Transaction) error {
 
 	var err error
-	//
-	//for i := 0; i < txFields.NumField(); i++ {
-	//	fmt.Printf("Field: %s\tValue: %v\n", typeOfTxFields.Field(i).Name, len(txFields.Field(i).Interface()))
-	//	if txFields.Field(i).Interface() == nil {
-	//		err = errors.New(fmt.Sprintf("Transaction from %x incorrect\nField : %s is empty", tx.SenderAddress, typeOfTxFields.Field(i).Name))
-	//		return false, err
-	//	}
-	//
-	//}
+
 	if len(tx.SenderAddress) != 32 {
 		err = errors.New(fmt.Sprintf("Tx is incorrect\nProblem with SenderAdress size"))
 		return err
@@ -266,6 +250,11 @@ func VerifyTransaction(tx transaction.Transaction) error {
 		return err
 	}
 
+	if tx.Nonce > time.Now().Unix() {
+		err = errors.New(fmt.Sprintf("Tx is incorrect\nProblem with nonce"))
+		return err
+	}
+
 	txDataToVerifySignature := bytes.Join([][]byte{tx.SenderAddress, tx.Data}, []byte{})
 
 	decodedPubKey, err := keypair.DecodePublicKey(tx.PubKey)
@@ -274,7 +263,7 @@ func VerifyTransaction(tx transaction.Transaction) error {
 	}
 
 	if CheckTxAlreadyExist(tx) {
-		err = errors.New("transaction already exist in blockchain")
+		err = errors.New("Tx is incorrect\nTransaction already exist in blockchain")
 		return err
 	}
 
@@ -282,14 +271,13 @@ func VerifyTransaction(tx transaction.Transaction) error {
 		//log.Printf("Transaction from %x correct", tx.SenderAddress)
 		return nil
 	} else {
-		err = errors.New(fmt.Sprintf("Signature is incorrect"))
-		//log.Printf("Transaction from %x incorrect", tx.SenderAddress)
+		err = errors.New(fmt.Sprintf("Tx is incorrect\nProblem with signature"))
 		return err
 	}
 }
 
 func GetUserTxHistory(bc *Blockchain, userAddress []byte) (s string) {
-	for in, _ := range *bc {
+	for in := range *bc {
 		for _, el := range (*bc)[in].Transactions {
 			if bytes.Equal(el.SenderAddress, userAddress) {
 				s += fmt.Sprintf("Tx in block %v\nTx hash:\n%v\n%v\n", in, hex.EncodeToString(el.GetTxHash()), el.ToString())
@@ -311,13 +299,11 @@ func GenMerkleRoot(resList [][]byte, txList [][]byte) []byte {
 			res := sha256.New()
 			res.Write(bytes.Join([][]byte{txList[i], txList[i+1]}, []byte{}))
 			resList = append(resList, res.Sum(nil))
-			//fmt.Println(hex.EncodeToString(res.Sum(nil)))
 		}
 	} else {
 		for i := 0; i < len(txList)-1; i += 2 {
 			res := sha256.New()
 			res.Write(bytes.Join([][]byte{txList[i], txList[i+1]}, []byte{}))
-			//res.Write([]byte(hex.EncodeToString(txList[i]) + hex.EncodeToString(txList[i+1])))
 			resList = append(resList, res.Sum(nil))
 		}
 		resList = append(resList, txList[len(txList)-1])

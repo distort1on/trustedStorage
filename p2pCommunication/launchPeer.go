@@ -3,7 +3,6 @@ package p2pCommunication
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -60,15 +59,11 @@ type myNotifee struct {
 	h host.Host
 }
 
-type PeersResponse struct {
-}
-
 func (mn myNotifee) HandlePeerFound(info peer.AddrInfo) {
 
-	fmt.Println("found peer", info.Addrs, info.ID)
+	log.Println("Found peer: ", info.Addrs, info.ID)
 
 	err := mn.h.Connect(context.Background(), info)
-	//mn.h.peer().AddAddrs(info.ID, info.Addrs, pstore.PermanentAddrTTL)
 
 	if err != nil {
 		log.Println(err)
@@ -82,7 +77,7 @@ func StartPeerDiscovery(node *host.Host) {
 
 	discoveryService := mdns.NewMdnsService(
 		*node,
-		"example",
+		"mdns",
 		&n,
 	)
 
@@ -94,24 +89,26 @@ func StartPeerDiscovery(node *host.Host) {
 }
 
 func PeerStreamHandler(s network.Stream) {
-	//mu.Lock()
-	//defer mu.Unlock()
-
 	log.Println("Received message"+" from", s.Conn().RemotePeer())
 
 	data, err := io.ReadAll(s)
 	if err != nil {
 		log.Println(err)
 	}
-	//fmt.Println(string(data[:3]))
+
 	NodeActionDecision(data, s.Conn().RemotePeer(), false)
 
-	//ReadData(s)
-	//if err != nil {
-	//	s.Reset()
-	//} else {
-	//	s.Close()
-	//}
+	if err != nil {
+		err = s.Reset()
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		err = s.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func LaunchP2PPeer() {
@@ -145,12 +142,9 @@ func LaunchP2PPeer() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("libp2p node address:", addrs[0])
+	log.Println("libp2p node address:", addrs[0])
 
 	Node.SetStreamHandler("/send/1.0.0", PeerStreamHandler)
 
 	StartPeerDiscovery(&Node)
-
-	//test_pr.StartGrpc()
-
 }

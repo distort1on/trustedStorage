@@ -5,18 +5,17 @@ import (
 	"log"
 	"time"
 	"trustedStorage/blockchain"
+	"trustedStorage/grpsServer"
 	"trustedStorage/mempool"
 	"trustedStorage/p2pCommunication"
 	"trustedStorage/serialization"
 	"trustedStorage/settings"
 	"trustedStorage/stateWorker"
-	"trustedStorage/test_pr"
 	"trustedStorage/transaction"
 )
 
 func BlocksCreatingProcess(memPool *mempool.MempoolTransactions) {
-	//p2pCommunication.StartTime = time.Now().Unix()
-	//p2pCommunication.StartHeight = blockchain.BlockChainIns.GetCurrentHeight()
+
 	numOfTransactionsInBlock := int(settings.GetNumOfTransactionsInBlock())
 	for {
 		if stateWorker.GetCurrentNodeState() != "Working" {
@@ -48,7 +47,7 @@ func BlocksCreatingProcess(memPool *mempool.MempoolTransactions) {
 				}
 			}
 		} else if settings.GetNextProposer() == p2pCommunication.Node.ID().String() {
-			if time.Now().Unix()-p2pCommunication.StartTime > settings.GetConsensusTime()+10 && p2pCommunication.StartHeight == blockchain.BlockChainIns.GetCurrentHeight() {
+			if time.Now().Unix()-p2pCommunication.StartTime > settings.GetConsensusTime()+settings.GetConsensusTime()/3 && p2pCommunication.StartHeight == blockchain.BlockChainIns.GetCurrentHeight() {
 				mempool.MemPoolIns.RemoveExistingTxFromMempool()
 
 				if len(*memPool) >= numOfTransactionsInBlock {
@@ -69,7 +68,7 @@ func BlocksCreatingProcess(memPool *mempool.MempoolTransactions) {
 						mempool.MemPoolIns.ReturnTxToMempool(block.Transactions)
 					}
 				}
-				time.Sleep(time.Second * 10)
+				time.Sleep(time.Duration(settings.GetConsensusTime())*time.Second + 3)
 			}
 		}
 	}
@@ -93,7 +92,7 @@ func LaunchNode() {
 	log.Println("Initializing node")
 
 	stateWorker.SetNodeState("Launching")
-	go test_pr.StartGrpc()
+	go grpsServer.StartGrpc()
 	go p2pCommunication.LaunchP2PPeer()
 	go p2pCommunication.RequestQueueIns.StartNodeQueueProcess()
 	time.Sleep(time.Second * 10)
@@ -101,7 +100,6 @@ func LaunchNode() {
 	if !NodeAwakening() {
 		askForFullChainLaunch()
 	} else {
-		//*blockchain.BlockChainIns = (*blockchain.BlockChainIns)[:1]
 		verifyAndAskForMissingBlocks()
 	}
 	p2pCommunication.StartHeight = blockchain.BlockChainIns.GetCurrentHeight()

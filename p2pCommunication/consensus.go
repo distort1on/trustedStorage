@@ -15,13 +15,13 @@ import (
 )
 
 // PBFT CONSENSUS
-// todo dont send messeges to peers that already not in consensus
-// todo quit time.sleep if alredy have all requests
+
+//todo quit time.sleep if already have all requests
 
 var totalNodesNum int
 var fault int
 
-const DEFAULT_TIME_OUT = 10
+const DEFAULT_TIME_OUT = 2
 
 var mu sync.Mutex
 
@@ -83,6 +83,26 @@ func verifyReceivedConsensusData(blockData []byte, supposedProposer peer.ID) boo
 	return true
 }
 
+func IsPeerInConsensus(peersMap map[peer.ID]bool, peer_ peer.ID) bool {
+	if CurConsensusMessage.currentProposer == peer_ {
+		return true
+	}
+	for key := range peersMap {
+		if peer_ == key {
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveAfkPeersFromConsensusGroup(peerMap *map[peer.ID]bool) {
+	for key := range *peerMap {
+		if len(Node.Network().ConnsToPeer(key)) == 0 {
+			delete(*peerMap, key)
+		}
+	}
+}
+
 var CurConsensusMessage *ConsensusMessage
 
 func StartConsensus(data []byte) bool {
@@ -101,8 +121,19 @@ func StartConsensus(data []byte) bool {
 	nData = append(nData, data...)
 	nData = append([]byte{'0'}, nData...)
 
-	totalNodesNum = len(Node.Network().Peers()) + 1
+	totalNodesNum = 1
+	for _, p := range settings.GetKnownPeersIds() {
+		decodedP, err := peer.Decode(p)
+		if err != nil {
+			continue
+		}
+		if len(Node.Network().ConnsToPeer(decodedP)) != 0 {
+			totalNodesNum++
+		}
+	}
+
 	fault = int(math.Trunc(float64((totalNodesNum - 1) / 3)))
+
 	if fault == 0 {
 		log.Println("Consensus process cant be started, must be more connected peers")
 		stateWorker.SetNodeState("Working")
@@ -110,7 +141,8 @@ func StartConsensus(data []byte) bool {
 	}
 
 	//send 0 wait for ppr
-	SendDataToConnectedPeersWithWait(Node, nData, int64(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second*DEFAULT_TIME_OUT)).Seconds()))
+	//SendDataToConnectedPeersWithWait(Node, nData, int64(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second*DEFAULT_TIME_OUT)).Seconds()))
+	SendDataToPeersInList(settings.GetKnownPeersIds(), nData, int64(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second*DEFAULT_TIME_OUT)).Seconds()))
 
 	// wait for responses
 	time.Sleep(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second * DEFAULT_TIME_OUT * 2)))
@@ -129,7 +161,7 @@ func StartConsensus(data []byte) bool {
 
 		time.Sleep(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second * DEFAULT_TIME_OUT * 7)))
 
-		if len(CurConsensusMessage.waitingList) < 2*fault {
+		if len(CurConsensusMessage.waitingList) < 2*fault+1 {
 			log.Println("Haven't received enough prepared messages, quiting consensus")
 			stateWorker.SetNodeState("Working")
 			return false
@@ -137,16 +169,20 @@ func StartConsensus(data []byte) bool {
 			//starting commit
 			stateWorker.SetNodeState("Consensus_Commit")
 			log.Println("Starting commit phase")
+			RemoveAfkPeersFromConsensusGroup(&CurConsensusMessage.consensusGroup)
 			SendDataToPeersInMap(CurConsensusMessage.consensusGroup, append([]byte{'2'}, CurConsensusMessage.blockData...), int64(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second*DEFAULT_TIME_OUT*8)).Seconds()))
 
 			//wait for finish commits
 			time.Sleep(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second * DEFAULT_TIME_OUT * 11)))
 
-			if CurConsensusMessage.TotalCount >= 2*fault {
+			if CurConsensusMessage.TotalCount > 2*fault+1 {
 				log.Println("Committing phase successful, adding block to blockchain")
+				RemoveAfkPeersFromConsensusGroup(&CurConsensusMessage.consensusGroup)
 				SendDataToPeersInMap(CurConsensusMessage.consensusGroup, []byte{'f'}, int64(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second*DEFAULT_TIME_OUT*12)).Seconds()))
+
 				AddReceivedBlockToBlockchain(CurConsensusMessage.blockData, blockchain.BlockChainIns)
 				stateWorker.SetNodeState("Working")
+				ProposeBlocksToAuditorNodes()
 				return true
 			} else {
 				log.Println("Haven't received enough commit messages, quiting consensus")
@@ -227,7 +263,7 @@ func Prepare() {
 	//wait for other prepared messages (pf)
 	time.Sleep(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second * DEFAULT_TIME_OUT * 6)))
 
-	if CurConsensusMessage.TotalCount >= 2*fault {
+	if CurConsensusMessage.TotalCount >= 2*fault+1 {
 		log.Println("Prepare finished, starting commit phase")
 
 		err := SendDataToConnectedPeerByPeerID(Node, CurConsensusMessage.currentProposer.String(), append([]byte("pf")))
@@ -254,15 +290,9 @@ func Prepare() {
 
 func CheckPrepared(data []byte, remotePeerID peer.ID) {
 	if bytes.Equal(data, CurConsensusMessage.blockData) {
-		log.Println("prepared")
 		mu.Lock()
 		CurConsensusMessage.TotalCount++
 		mu.Unlock()
-		//err := SendDataToConnectedPeerByPeerID(Node, remotePeerID.String(), append([]byte("1r"), data...), 60)
-		//todo err != response doesn't received
-		//if err != nil {
-		//	log.Println(err)
-		//}
 
 	} else {
 		log.Println("Message is invalid")
@@ -272,18 +302,19 @@ func CheckPrepared(data []byte, remotePeerID peer.ID) {
 func Commit() {
 	stateWorker.SetNodeState("Consensus_Commit")
 	log.Println("Send commit to other nodes")
-	CurConsensusMessage.TotalCount = 2 //node + proposer
+	CurConsensusMessage.TotalCount = 2 //proposer + node
 	CurConsensusMessage.waitingList = make(map[peer.ID]bool)
 	CurConsensusMessage.consensusGroup[CurConsensusMessage.currentProposer] = true
 
 	data := append([]byte{'c'}, CurConsensusMessage.blockData...)
+	RemoveAfkPeersFromConsensusGroup(&CurConsensusMessage.consensusGroup)
 
 	SendDataToPeersInMap(CurConsensusMessage.consensusGroup, data, int64(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second*DEFAULT_TIME_OUT*9)).Seconds()))
 
 	// wait for others commit messages
 	time.Sleep(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second * DEFAULT_TIME_OUT * 10)))
 
-	if CurConsensusMessage.TotalCount >= 2*fault {
+	if CurConsensusMessage.TotalCount > 2*fault+1 {
 		log.Println("Committing finished, waiting for block commit")
 		stateWorker.SetNodeState("Finishing")
 
@@ -313,9 +344,7 @@ func Commit() {
 }
 
 func CheckCommit(data []byte, remotePeerID peer.ID) {
-	//todo add if from list first
 	if bytes.Equal(data, CurConsensusMessage.blockData) {
-		log.Println("commit")
 		mu.Lock()
 		CurConsensusMessage.TotalCount++
 		mu.Unlock()

@@ -1,0 +1,12 @@
+{
+  "P2PPeerAddressFull" : "/ip4/127.0.0.1/tcp/1116/p2p/QmUbcteSnKJzGbUAPb9byJuiNXteNoCKFBn1Z6YPitgYSH",
+  "NodeAddress" : "/ip4/127.0.0.1/tcp/1116",
+  "RPCPeerAddress" : "localhost:8093",
+  "KnownPeersAddresses" : [
+  ],
+  "MasterPeersIds" : [
+    "QmSVE98yy8gGxsdfWFNxtRnvsBu2bCsvja1gNFqEEQH1v5",
+    "QmRSiUWoAPTH1AHg2ZsuVUWuHjhT47vNkfuqB7MWGxwBD1"
+  ],
+  "NodePrivateKey" : "3077020101042009255733ca873a2636a32129e46064accc95775394c3639ff8f03aef4fd6333da00a06082a8648ce3d030107a1440342000466960b8b1bc79dac287115cc15798d12422f0fde5cdfcf8511744962edf0352e78594ccf6d12a33865f79cf5656f6ee0da37b98b9169c5c9685711a7aed77149"
+}

@@ -27,7 +27,6 @@ func (q *ReqQueue) StartNodeQueueProcess() {
 			time.Sleep(time.Second * 5)
 			continue
 		}
-
 		if len(*q) != 0 {
 			log.Println("Executing request from a queue")
 			NodeActionDecision((*q)[0].data, (*q)[0].id, true)

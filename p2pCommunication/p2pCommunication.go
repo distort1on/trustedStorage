@@ -5,7 +5,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multihash"
 	"log"
 	"strconv"
 	"sync"
@@ -29,6 +28,25 @@ func ProposeTransaction(tx transaction.Transaction) {
 	SendDataToPeersInList(masterPeers, data, 0)
 }
 
+func ProposeBlocksToAuditorNodes() {
+	var err error
+	log.Println("Asking auditor nodes if they need blocks")
+	currBCLengthBytes := []byte(strconv.Itoa(blockchain.BlockChainIns.GetCurrentHeight()))
+
+	data := append([]byte("pb"), currBCLengthBytes...)
+	connectedPeers := Node.Network().Peers()
+
+	for _, p := range connectedPeers {
+		if !settings.IsKnownAddress(p.String()) {
+			err = SendDataToConnectedPeerByPeerID(Node, p.String(), data)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}
+
+}
+
 func AddReceivedBlockToBlockchain(data []byte, bc *blockchain.Blockchain) {
 	var block blockchain.Block
 	err := serialization.DeSerialize(&block, data)
@@ -40,7 +58,6 @@ func AddReceivedBlockToBlockchain(data []byte, bc *blockchain.Blockchain) {
 		log.Println(err)
 	}
 	log.Printf("Block on height %v created", len(*bc)-1)
-
 	StartTime = time.Now().Unix()
 	StartHeight = blockchain.BlockChainIns.GetCurrentHeight()
 }
@@ -77,27 +94,31 @@ func SendDataToConnectedPeerByFullAddress(node host.Host, targetPeerAddr string,
 func SendDataToConnectedPeerByPeerID(node host.Host, targetPeerID string, data []byte) error {
 	log.Println("sending message to ", targetPeerID)
 
-	mult, err := multihash.FromB58String(targetPeerID)
+	//mult, err := multihash.FromB58String(targetPeerID)
+	//if err != nil {
+	//	return err
+	//}
+	//addrInfo := node.Peerstore().PeerInfo(peer.ID(mult))
+	//
+	//p2pAddr, err := peer.AddrInfoToP2pAddrs(&addrInfo)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//addr, err := multiaddr.NewMultiaddr(p2pAddr[0].String())
+	//if err != nil {
+	//	return err
+	//}
+	//pAddr, err := peer.AddrInfoFromP2pAddr(addr)
+	//if err != nil {
+	//	return err
+	//}
+	decodedPeerID, err := peer.Decode(targetPeerID)
 	if err != nil {
 		return err
 	}
-	addrInfo := node.Peerstore().PeerInfo(peer.ID(mult))
 
-	p2pAddr, err := peer.AddrInfoToP2pAddrs(&addrInfo)
-	if err != nil {
-		return err
-	}
-
-	addr, err := multiaddr.NewMultiaddr(p2pAddr[0].String())
-	if err != nil {
-		return err
-	}
-	pAddr, err := peer.AddrInfoFromP2pAddr(addr)
-	if err != nil {
-		return err
-	}
-
-	stream, err := node.NewStream(context.Background(), pAddr.ID, "/send/1.0.0")
+	stream, err := node.NewStream(context.Background(), decodedPeerID, "/send/1.0.0")
 	if err != nil {
 		//if timeout != 0 {
 		//	log.Println(err)
@@ -219,6 +240,8 @@ func SendDataToPeersInList(peersList []string, data []byte, timeout int64) {
 				err = WaitForDelivery(p, data, timeout)
 				if err != nil {
 					log.Println(err)
+				} else {
+					log.Println("Request delivered successfully")
 				}
 				wg.Done()
 			}
@@ -228,11 +251,9 @@ func SendDataToPeersInList(peersList []string, data []byte, timeout int64) {
 }
 
 func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
-	//todo check if received message is in consensus group on each state
 	if data[0] == '0' && stateWorker.GetCurrentNodeState() == "Working" {
 		//send consensus propose
 		PrePrepare(data[1:], connPeerID)
-
 	} else if string(data[:3]) == "ppr" && stateWorker.GetCurrentNodeState() == "Starting_Consensus" {
 		//proposer receive answer from backup nodes
 		//ResponseReceived(connPeerID.String())
@@ -240,8 +261,7 @@ func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
 		CurConsensusMessage.consensusGroup[connPeerID] = true
 		mu.Unlock()
 
-	} else if string(data[:3]) == "ppf" && stateWorker.GetCurrentNodeState() == "Consensus_Pre_Prepare" {
-		//ResponseReceived(connPeerID.String())
+	} else if string(data[:3]) == "ppf" && stateWorker.GetCurrentNodeState() == "Consensus_Pre_Prepare" && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		//backup node receive from proposer, starting consensus, receiving consensus group
 		if connPeerID == CurConsensusMessage.currentProposer {
 			CurConsensusMessage.waitingList[connPeerID] = true
@@ -249,34 +269,33 @@ func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
 			if err != nil {
 				log.Println(err)
 			}
-			log.Println("received group", CurConsensusMessage.consensusGroup)
 		}
 
-	} else if data[0] == '1' && stateWorker.GetCurrentNodeState() == "Consensus_Prepare" {
+	} else if data[0] == '1' && stateWorker.GetCurrentNodeState() == "Consensus_Prepare" && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		_, ok := CurConsensusMessage.consensusGroup[connPeerID]
 		if ok {
 			CheckPrepared(data[1:], connPeerID)
 		}
 
-	} else if string(data[:2]) == "pf" && stateWorker.GetCurrentNodeState() == "Starting_Consensus" {
+	} else if string(data[:2]) == "pf" && stateWorker.GetCurrentNodeState() == "Starting_Consensus" && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		_, ok := CurConsensusMessage.consensusGroup[connPeerID]
 		if ok {
 			mu.Lock()
 			CurConsensusMessage.waitingList[connPeerID] = true
 			mu.Unlock()
 		}
-	} else if data[0] == '2' && stateWorker.GetCurrentNodeState() == "Consensus_Prepare" {
+	} else if data[0] == '2' && stateWorker.GetCurrentNodeState() == "Consensus_Prepare" && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		if CurConsensusMessage.currentProposer == connPeerID {
 			mu.Lock()
 			CurConsensusMessage.waitingList[connPeerID] = true
 			mu.Unlock()
 		}
-	} else if data[0] == 'c' && stateWorker.GetCurrentNodeState() == "Consensus_Commit" {
+	} else if data[0] == 'c' && stateWorker.GetCurrentNodeState() == "Consensus_Commit" && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		_, ok := CurConsensusMessage.consensusGroup[connPeerID]
 		if ok {
 			CheckCommit(data[1:], connPeerID)
 		}
-	} else if string(data[:2]) == "fc" && stateWorker.GetCurrentNodeState() == "Consensus_Commit" && Node.ID() == CurConsensusMessage.currentProposer {
+	} else if string(data[:2]) == "fc" && stateWorker.GetCurrentNodeState() == "Consensus_Commit" && Node.ID() == CurConsensusMessage.currentProposer && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		_, ok := CurConsensusMessage.consensusGroup[connPeerID]
 		if ok {
 			mu.Lock()
@@ -284,7 +303,7 @@ func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
 			mu.Unlock()
 		}
 
-	} else if data[0] == 'f' && stateWorker.GetCurrentNodeState() == "Finishing" {
+	} else if data[0] == 'f' && stateWorker.GetCurrentNodeState() == "Finishing" && IsPeerInConsensus(CurConsensusMessage.consensusGroup, connPeerID) {
 		if connPeerID == CurConsensusMessage.currentProposer {
 			CurConsensusMessage.waitingList[connPeerID] = true
 		}
@@ -295,7 +314,7 @@ func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
 		if err != nil {
 			log.Println(err)
 		}
-	} else if data[0] == 'r' && stateWorker.GetCurrentNodeState() == "Waiting_Full_Chain" {
+	} else if data[0] == 'r' && stateWorker.GetCurrentNodeState() == "Waiting_Full_Chain" && settings.IsMasterNode(connPeerID.String()) {
 		log.Println("Received full chain")
 		err := serialization.DeSerialize(&blockchain.BlockChainIns, data[1:])
 		if err != nil {
@@ -322,10 +341,8 @@ func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
 			}
 		}
 
-	} else if data[0] == 'm' && stateWorker.GetCurrentNodeState() == "Waiting_Missing_Blocks" {
-		if len(data) == 1 {
-			log.Println("My blockchain is valid, start normal working")
-		} else {
+	} else if data[0] == 'm' && stateWorker.GetCurrentNodeState() == "Waiting_Missing_Blocks" && settings.IsMasterNode(connPeerID.String()) {
+		if len(data) != 1 {
 			log.Println("Received missing blocks")
 			var missBlocks blockchain.Blockchain
 
@@ -355,6 +372,32 @@ func NodeActionDecision(data []byte, connPeerID peer.ID, fromQueue bool) {
 		err = mempool.MemPoolIns.AddTxToMempool(tx)
 		if err != nil {
 			log.Println(err)
+		}
+	} else if string(data[:2]) == "pb" && stateWorker.GetCurrentNodeState() == "Working" && settings.IsMasterNode(connPeerID.String()) {
+		//auditor node
+		proposedHeight, err := strconv.Atoi(string(data[2:]))
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		if proposedHeight > blockchain.BlockChainIns.GetCurrentHeight() {
+			stateWorker.SetNodeState("Waiting_Missing_Blocks")
+			currentBlockchainHeight := strconv.Itoa(blockchain.BlockChainIns.GetCurrentHeight())
+
+			err = WaitForDelivery(connPeerID.String(), []byte("h"+currentBlockchainHeight), 10)
+			if err != nil {
+				log.Println("Proposer afk, continue working")
+				stateWorker.SetNodeState("Working")
+				return
+			}
+
+			if stateWorker.WaitForStateChanged("Waiting_Missing_Blocks", "Received_Missing_Blocks", 10) {
+				log.Println("Blockchain is up-to-date now")
+			} else {
+				log.Println("Proposer afk, continue working")
+			}
+			stateWorker.SetNodeState("Working")
 		}
 	} else if !fromQueue {
 		RequestQueueIns.AddRequest(data, connPeerID)

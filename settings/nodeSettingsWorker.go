@@ -96,11 +96,35 @@ func GetMasterNodeIds() []string {
 	return data.MasterPeersIds
 }
 
-func IsMasterNode(NodeId string) bool {
+func GetKnownPeersIds() []string {
+	content, err := os.ReadFile(NodeSettingsFileName)
+	if err != nil {
+		log.Println(err)
+	}
+	data := NodeConfig{}
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		log.Println(err)
+	}
+	return data.KnownPeersAddresses
+}
+
+func IsMasterNode(nodeID string) bool {
 	masterNodes := GetMasterNodeIds()
 
 	for _, el := range masterNodes {
-		if el == NodeId {
+		if el == nodeID {
+			return true
+		}
+	}
+	return false
+}
+
+func IsKnownAddress(nodeID string) bool {
+	knownNodes := GetKnownPeersIds()
+
+	for _, el := range knownNodes {
+		if el == nodeID {
 			return true
 		}
 	}

@@ -1,4 +1,4 @@
 {
-  "NumOfTransactionsInBlock": 1,
-  "ConsensusTime": 60
+  "NumOfTransactionsInBlock": 500,
+  "ConsensusTime": 40
 }

@@ -1,4 +1,4 @@
-package test_pr
+package grpsServer
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"net"
 	"strconv"
 	"trustedStorage/blockchain"
-	"trustedStorage/grpsServer"
 	"trustedStorage/mempool"
 	"trustedStorage/p2pCommunication"
 	"trustedStorage/settings"
@@ -20,10 +19,10 @@ import (
 //var Sh = shell.NewShell("localhost:5001")
 
 type myInvoicerServer struct {
-	grpsServer.UnimplementedInvoicerServer
+	UnimplementedInvoicerServer
 }
 
-func (s *myInvoicerServer) AddTxToBlockchain(ctx context.Context, req *grpsServer.CreateTx) (*grpsServer.CreateResponse, error) {
+func (s *myInvoicerServer) AddTxToBlockchain(ctx context.Context, req *CreateTx) (*CreateResponse, error) {
 	var err error
 	tx := transaction.Transaction{
 		SenderAddress: req.SenderAddress,
@@ -33,56 +32,45 @@ func (s *myInvoicerServer) AddTxToBlockchain(ctx context.Context, req *grpsServe
 		Nonce:         req.Nonce,
 		Cid:           req.Cid,
 	}
-	//documentBytes := req.DocumentBytes
 	log.Printf("Transaction from %x received", req.SenderAddress)
-
-	//if len(documentBytes) > 3000000 {
-	//	err = errors.New("document is too big")
-	//	log.Println(err)
-	//	return &grpsServer.CreateResponse{
-	//		Response: err.Error(),
-	//	}, nil
-	//}
-
 	err = mempool.MemPoolIns.AddTxToMempool(tx)
 	if err != nil {
 		log.Println(err)
-		return &grpsServer.CreateResponse{
+		return &CreateResponse{
 			Response: err.Error(),
 		}, nil
 	}
 	p2pCommunication.ProposeTransaction(tx)
-	//fmt.Println(tx.ToString())
 
-	return &grpsServer.CreateResponse{
+	return &CreateResponse{
 		Response: "Tx added to mempool\nTx hash: " + hex.EncodeToString(tx.GetTxHash()),
 	}, nil
 }
 
-func (s *myInvoicerServer) GetLastBlock(ctx context.Context, emp *emptypb.Empty) (*grpsServer.CreateResponse, error) {
+func (s *myInvoicerServer) GetLastBlock(ctx context.Context, emp *emptypb.Empty) (*CreateResponse, error) {
 	log.Println("Sending last block")
-	return &grpsServer.CreateResponse{
+	return &CreateResponse{
 		//Response: (*BlockChainIns)[len(*BlockChainIns)-1].ToString(),
 		Response: blockchain.BlockChainIns.GetLastBlock().ToString(),
 	}, nil
 }
 
-func (s *myInvoicerServer) GetBlockchain(ctx context.Context, emp *emptypb.Empty) (*grpsServer.CreateResponse, error) {
+func (s *myInvoicerServer) GetBlockchain(ctx context.Context, emp *emptypb.Empty) (*CreateResponse, error) {
 	log.Println("Sending blockchain history")
-	return &grpsServer.CreateResponse{
+	return &CreateResponse{
 
 		Response: blockchain.BlockChainIns.ToString(),
 	}, nil
 }
 
-func (s *myInvoicerServer) GetUserTxHistory(ctx context.Context, req *grpsServer.User) (*grpsServer.CreateResponse, error) {
+func (s *myInvoicerServer) GetUserTxHistory(ctx context.Context, req *User) (*CreateResponse, error) {
 	log.Println("Sending user tx history")
-	return &grpsServer.CreateResponse{
+	return &CreateResponse{
 		Response: blockchain.GetUserTxHistory(blockchain.BlockChainIns, req.SenderAddress),
 	}, nil
 }
 
-func (s *myInvoicerServer) GetTxByHash(ctx context.Context, req *grpsServer.Transaction) (*grpsServer.CreateResponse, error) {
+func (s *myInvoicerServer) GetTxByHash(ctx context.Context, req *Transaction) (*CreateResponse, error) {
 	log.Printf("Finding transaction %x by hash\n", req.TxHash)
 
 	var res string
@@ -93,12 +81,12 @@ func (s *myInvoicerServer) GetTxByHash(ctx context.Context, req *grpsServer.Tran
 	} else {
 		res = "Can't find tx. It does not exist or has not been confirmed yet"
 	}
-	return &grpsServer.CreateResponse{
+	return &CreateResponse{
 		Response: res,
 	}, nil
 }
 
-func (s *myInvoicerServer) FindDocumentByHash(ctx context.Context, req *grpsServer.Document) (*grpsServer.CreateResponse, error) {
+func (s *myInvoicerServer) FindDocumentByHash(ctx context.Context, req *Document) (*CreateResponse, error) {
 	log.Printf("Finding document %x by hash\n", req.DocumentHash)
 
 	var res string
@@ -109,7 +97,7 @@ func (s *myInvoicerServer) FindDocumentByHash(ctx context.Context, req *grpsServ
 	} else {
 		res = "Can't find document. It does not exist or has not been confirmed yet"
 	}
-	return &grpsServer.CreateResponse{
+	return &CreateResponse{
 		Response: res,
 	}, nil
 }
@@ -119,13 +107,12 @@ func StartGrpc() {
 	lis, err := net.Listen("tcp", settings.GetRpcNodeAddress())
 	if err != nil {
 		log.Fatalf("Cannot create listener : %s", err)
-		//lis, err = net.Listen("tcp", ":0")
 	}
 
 	ServerRegistrar := grpc.NewServer()
 
 	service := &myInvoicerServer{}
-	grpsServer.RegisterInvoicerServer(ServerRegistrar, service)
+	RegisterInvoicerServer(ServerRegistrar, service)
 
 	log.Println("RPC listening on ", lis.Addr())
 

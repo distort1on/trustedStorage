@@ -8,7 +8,7 @@ import (
 	"trustedStorage/serialization"
 )
 
-func SleepNode() {
+func SaveNode() {
 	log.Println("Writing data to the database")
 	bcBytes := serialization.Serialize(blockchain.BlockChainIns)
 	database.WriteToDB(bcBytes, "blockchain", NodeNum) //maybe write each block?

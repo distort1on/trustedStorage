@@ -65,10 +65,14 @@ func (mp *MempoolTransactions) ReturnTxToMempool(txList []transaction.Transactio
 }
 
 func (mp *MempoolTransactions) RemoveExistingTxFromMempool() {
-	for i, tx := range *mp {
-		if blockchain.CheckTxAlreadyExist(tx) {
-			(*mp)[i] = (*mp)[len(*mp)-1]
-			*mp = (*mp)[:len(*mp)-1]
+	var newMempool MempoolTransactions
+
+	for _, tx := range *mp {
+		if !blockchain.CheckTxAlreadyExist(tx) {
+			//(*mp)[i] = (*mp)[len(*mp)-1]
+			//*mp = (*mp)[:len(*mp)-1]
+			newMempool = append(newMempool, tx)
 		}
 	}
+	*mp = newMempool
 }

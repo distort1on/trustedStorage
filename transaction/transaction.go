@@ -12,11 +12,6 @@ import (
 )
 
 type Transaction struct {
-	//TxVersion
-	//LockTime
-	//sequence
-	//timestamp here?
-
 	SenderAddress []byte //x509 public key hash
 	Data          []byte
 	PubKey        []byte //x509 public key
@@ -55,7 +50,7 @@ func (tx *Transaction) ToString() string {
 	//return fmt.Sprint(string(out))
 
 	return fmt.Sprintf(
-		"\n\t\t'SenderAddress' : %x\n\t\t'Data' : %x\n\t\t'PubKey' : %x\n\t\t'Signature' : %x\n\t\t'Cid' : %s\n\t\t'Nonce' : %d\n\t\t'Tx hash' : %x\n",
+		"\n\t\t'SenderAddress' : %x\n\t\t'Data' : %x\n\t\t'PubKey' : %x\n\t\t'Signature' : %x\n\t\t'Cid' : %x\n\t\t'Nonce' : %d\n\t\t'Tx hash' : %x\n",
 		tx.SenderAddress,
 		tx.Data,
 		tx.PubKey,

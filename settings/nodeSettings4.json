@@ -3,7 +3,10 @@
   "NodeAddress" : "/ip4/127.0.0.1/tcp/1114",
   "RPCPeerAddress" : "localhost:8089",
   "KnownPeersAddresses" : [
-    ""
+    "QmRSiUWoAPTH1AHg2ZsuVUWuHjhT47vNkfuqB7MWGxwBD1",
+    "QmfPvMDwxawE88y8VmSLck8mVLMgirHY5nnydxKmbKRhVb",
+    "QmSVE98yy8gGxsdfWFNxtRnvsBu2bCsvja1gNFqEEQH1v5",
+    "QmP6fLaUmqPbNGvo1gfYhfX5YbJr2GnBBzwxGu4am1NsGB"
   ],
   "MasterPeersIds" : [
     "QmSVE98yy8gGxsdfWFNxtRnvsBu2bCsvja1gNFqEEQH1v5",
