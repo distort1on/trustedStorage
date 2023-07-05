@@ -228,7 +228,7 @@ func PrePrepare(data []byte, remotePeerID peer.ID) {
 		err := SendDataToConnectedPeerByPeerID(Node, remotePeerID.String(), append([]byte("ppr"), data...))
 		if err != nil {
 			log.Println(err)
-			log.Println("Primary node afk, quiting consensus process")
+			log.Println("Primary node afk or didn't received enough messages, quiting consensus process")
 			stateWorker.SetNodeState("Working")
 			return
 		}
@@ -238,7 +238,7 @@ func PrePrepare(data []byte, remotePeerID peer.ID) {
 		time.Sleep(time.Until(CurConsensusMessage.consensusStartTime.Add(time.Second * DEFAULT_TIME_OUT * 3)))
 
 		if CurConsensusMessage.waitingList[CurConsensusMessage.currentProposer] == false {
-			log.Println("Primary node afk, quiting consensus process")
+			log.Println("Primary node afk or didn't received enough messages, quiting consensus process")
 			stateWorker.SetNodeState("Working")
 			return
 		}

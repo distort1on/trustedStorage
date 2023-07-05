@@ -1,5 +1,7 @@
 package p2pCommunication
 
+//todo work rly bad, should be fixed or removed
+
 import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"log"
